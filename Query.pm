@@ -16,7 +16,7 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
-# $Id: Query.pm,v 1.15 1995/09/29 21:23:53 aks Exp $
+# $Id: Query.pm,v 1.1.1.1 1996/08/09 21:39:25 stebbens Exp $
 # Author: Alan K. Stebbens <aks@hub.ucsb.edu>
 #
 #
@@ -30,7 +30,7 @@
 # query_table_process
 #		-- process a table of queries
 #
-# Note: This module uses the PrintArray module (by the same author).
+# Note: This module uses the Array::PrintCols module (by the same author).
 
 package Term::Query;
 
@@ -46,7 +46,7 @@ use Exporter;
 	       );
 
 use Carp;
-use PrintArray;
+use Array::PrintCols;
 
 ###############
 #
@@ -201,6 +201,8 @@ $need_arg_codes = 'abdhIkKlmV';		# list of codes which need an argument
 
 $Case_sensitive = '';	
 
+$Force_Interactive = '';		# set to force interactive behaviour
+
 ##################################################################################
 #
 # 	&query($prompt, $flags, @optional_args)
@@ -244,7 +246,7 @@ sub query {
 	$input = &deref($inref);
 	$inref_flag = '' if $inref_once;	# kill flag if "once"
     } else {
-	if (-t STDIN) {			# interactive?
+	if (-t STDIN or $Force_Interactive) {	# interactive?
 	    print $prompt;
 	    print " " unless substr($prompt, -1) eq ' ';
 	    if ($default ne '') {
@@ -253,24 +255,25 @@ sub query {
 	    }
 	}
 	$input = <STDIN>;
+	print "\n" if !-t STDIN and $Force_Interactive;
     }
 
     # Now process all the check expressions.  If any return undef, then
-    # return from this routine with undef.  If a null return is made,
-    # then reject the input.  Otherwise, it passes.
+    # return from this routine with undef.  If a null or zero return is 
+    # made, then reject the input.  Otherwise, it passes.
 
     foreach $check ( @checks ) {
       $result = &$check;		# process the check
       return undef unless defined($result);	# was the result undef?
 
       # Perform the next test if this one was okay
-      next if length($result);
+      next if $result;
 
       # If $inref_flag is set (I flag), don't loop
       return undef 	if $inref_flag; 
 
       # don't try looping on non-interactive input
-      return undef unless -t STDIN;	
+      return undef unless -t STDIN or $Force_Interactive;	
 
       print "Please try again, or enter \"?\" for help.\n";
       next Query;		# do another query
@@ -387,10 +390,10 @@ sub check_keys {
   }
   if ($#matches > 0) {	# ambiguous?
     print "The input \"$input\" is ambiguous; it matches the following:\n";
-    print_array \@matches;
+    print_cols \@matches;
   } else {
     print "The input \"$input\" fails to match any of the allowed keywords:\n";
-    print_array $keys;
+    print_cols $keys;
   }
   '';			# fail the input
 }
@@ -447,7 +450,9 @@ sub check_yesorno {
     print "Please answer with \"yes\" or \"no\".\n";
     return '';
   }
-  $input =~ /^y(es?)?$/i ? 'yes' : 'no';
+  # Coerce input to 'yes' or 'no' 
+  # Fixed by markw@temple.dev.wholesale.nbnz.co.nz (Mark Wright)
+  $input = $input =~ /^y(es?)?$/i ? 'yes' : 'no';
 }
 
 #
@@ -455,7 +460,7 @@ sub check_yesorno {
 #
 
 sub check_match {
-  $input =~ m/$match/ && return 1;
+  return 1 if $match eq '' or $input =~ m/$match/;
   printf "\"%s\" fails to match \"%s\"\n", $input, $match;
   '';			# fail the input
 }
@@ -465,7 +470,7 @@ sub check_match {
 #
 
 sub check_length {
-  ($maxlen > 0 && length($input) <= $maxlen) || return 1;
+  return 1 if $maxlen <= 0 or length($input) <= $maxlen;
   printf "Input is %d characters too long; cannot exceed %d characters.\n",
 	 (length($input) - $maxlen), $maxlen;
   '';			# fail the input
@@ -475,7 +480,7 @@ sub check_length {
 #	&check_required
 #
 sub check_required {
-  length($input) && return 1;
+  return 1 if length($input);
   print "Input is required.\n";
   '';			# fail the input
 }
@@ -485,8 +490,8 @@ sub check_required {
 #
 
 sub check_null {
-  length($input) || return undef;	# a null input is an EOF
-  substr($input,-1) eq "\n" && chop($input);	# trim trailing newline
+  return undef unless length($input);	# a null input is an EOF
+  chomp($input);			# trim trailing newline
   1;					# always succeed
 }
 
@@ -523,12 +528,12 @@ sub check_help {
   printf "The input must match the pattern \"%s\".\n",$match if $match;
   if (@$keys) {
     print "The input must match one of the following keywords:\n";
-    print_array $keys, 0, 0, 1;
+    print_cols $keys, 0, 0, 1;
     print "The keyword matching is case-sensitive.\n" if $Case_sensitive;
   }
   if (@$notkeys) {
     print "The input cannot match one of the following keywords:\n";
-    print_array $notkeys, 0, 0, 1;
+    print_cols $notkeys, 0, 0, 1;
     print "The keyword matching is case-sensitive.\n" if $Case_sensitive;
   }
   print "\n";
@@ -688,7 +693,7 @@ __END__
 
 =head1 NAME
 
-B<Term::Query>
+B<Term::Query> - Table-driven query routine.
 
 =head1 SYNOPSIS
 
@@ -725,6 +730,14 @@ reattempted.
 
 When STDIN is not a tty (not interactive), prompts are not issued, and
 errors cause a return rather than attempting to obtain more input.
+This non-interactive behaviour can be disabled by setting the variable
+C<$Foce_Interactive> as below:
+
+    $Term::Query::Force_Interactive = 1;
+
+When C<$Force_Interactive> is a non-null, non-zero value, B<query>
+will issue prompts, error messages, and ask for additional input
+even when the input is not interactive.
 
 =head2 B<query_table>
 
@@ -980,15 +993,50 @@ a reference to a variable, eg: C<\$some_var>.
 
 =head2 Details
 
-The query processing proceeds like this:
+The query processing proceeds basically in the same order as defined by
+the I<flags> argument, with some exceptions.  For example, the I<before>
+subroutine is always performed prior to input.
+
+There are implicit precedences in the ordering of some of the I<flag>
+tests.  Generally, flags have their corresponding tests performed in
+the same order as the given flags.  Some flag tests, however, require
+that other flags' tests be performed beforehand in order to be
+effective.  For example, when given the B<k> flag and an B<s> flag,
+stripping the input would only be effective if the strip were done on
+the input before testing the input against the keyword table.  In other
+words, the B<s> flag has precedence over the B<k> flag.  If the user
+supplies the I<flags> string as C<"ks">, the effective ordering would
+still be C<"sk">.
+
+The table below indicates the precedences of the flag tests:
+
+  Given Flag       Flags With Higher Precedence
+  ==========       ================================
+  i (int)          s (strip), d (default), h (help)
+  k (key)          s (strip), d (default), h (help)
+  K (nonkey)       s (strip), d (default), h (help)
+  l (maxlen)                  d (default), h (help)
+  m (match)                   d (default), h (help)
+  n (numeric)      s (strip), d (default), h (help)
+  N (no)           s (strip), d (default), h (help)
+  r (required)                d (default), h (help)
+  s (strip)                   d (default), h (help)
+  Y (yes)          s (strip), d (default), h (help)
+
+Except for the implied precedence indicated in the table above, the
+ordering of the flag tests proceeds in the same order as given
+in the I<flags> argument.
+
+Excepting the precedences above, query processing proceeds generally as
+described below.
 
 =over 5
 
 =item *
 
 If the B<b> flag was given, the "before" subroutine is invoked as a
-"pre-input" test.  If the sub returns a 0 or undef, the query is
-abandoned.  Otherwise, processing continues.
+"pre-input" test.  If the sub returns a 0, empty string, or undef, the 
+query is abandoned.  Otherwise, processing continues.
 
 =item *
 
@@ -1004,6 +1052,15 @@ entry into the input loop.
 In the absence either the B<I> or B<J> flags, C<query> will issue the
 given prompt and obtain input from STDIN.  If an EOF occurs, an C<undef>
 value will result.
+
+=item *
+
+The input is examined for "null" input (that is, the empty string), and
+processing quits in this case.  Since most input is obtained from
+STDIN, a null input indicates an end-of-file (EOF).  If the input is
+not null, a terminating newline is removed, and the input testing
+continues.  At this point, an empty input string does not indicate an
+EOF.
 
 =item *
 
@@ -1033,6 +1090,14 @@ response.
 
 If input is I<required> (indicated by the B<r> flag), and if the input
 is empty, produce an error message, and query again.
+
+=item *
+
+If there was a B<a> flag, the corresponding I<after> subroutine is
+invoked with the input reference as its argument.  If the subroutine
+returns a non-null, non-zero value, the input succeeds, otherwise it
+fails.  It is up to the I<after> subroutine to display any appropriate
+error messages.
 
 =item *
 
@@ -1187,7 +1252,7 @@ arrays.  If not defined, 80 is used by default.
 
 Used to produce usage error messages.
 
-=item B<PrintArray.pm>
+=item B<Array::PrintCols::print_cols>
 
 Used to produce displays of the keyword arrays.
 

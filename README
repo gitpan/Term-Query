@@ -1,4 +1,4 @@
-This is the README file ($Revision: 1.10 $) for Term::Query.pm.
+This is the README file ($Revision: 1.2 $) for Term::Query.pm.
 
 Term::Query.pm is a Perl 5 module, which performs generalized queries on
 various kinds of values.  Validation and normalization of input, based
@@ -56,19 +56,19 @@ There is a Makefile with several useful targets for installing at one or
 more common locations; there is a "test" target which will perform
 regression tests against previous "good" output (see the "t" directory).
 
+WARNING: The "make test" is currently under development, and does not work.
+The Query.pm module does work as advertised (except for unreported bugs :^)
+
 The Query.pm archive is available under the GNU General License,
 Version 2, and is located at:
 
-  ftp://hub.ucsb.edu/pub/prog/perl/Term-Query-$VER.shar
-  ftp://hub.ucsb.edu/pub/prog/perl/Term-Query-$VER.tar.gz
+  http://reality.sgi.com:80/aks/depot/perl/term/Term-Query-2.0.tar.gz
 
-where $VER is the latest version number.  The ".shar" suffix indicates
-a "shell archive"; the ".tar.gz" suffix indicates a "gzip" compressed
-"tar" archive.
+as well as your favorite CPAN site  (see "http://www.perl.com/CPAN").
 
 Suggestions or improvements are welcome.
 
-  Copyright (C) 1995  Alan K. Stebbens <aks@hub.ucsb.edu>
+  Copyright (C) 1995-1997  Alan K. Stebbens <aks@sgi.com>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -84,7 +84,5 @@ Suggestions or improvements are welcome.
   along with this program; if not, write to the Free Software
   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-_______________________________________
-Alan K. Stebbens <aks@hub.ucsb.edu>
-College of Engineering
-University of California, Santa Barbara
+___________________________________________________________
+Alan Stebbens <aks@sgi.com>      http://reality.sgi.com/aks
